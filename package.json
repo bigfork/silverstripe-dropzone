@@ -1,0 +1,41 @@
+{
+  "name": "@bigfork/silverstripe-dropzone",
+  "description": "Dropzone file upload field for SilverStripe",
+  "main": "./client/src/boot/index.js",
+  "author": "Bigfork Ltd",
+  "engines": {
+    "node": ">=6.x"
+  },
+  "scripts": {
+    "build": "yarn && yarn lint && NODE_ENV=production webpack -p --bail --progress",
+    "dev": "NODE_ENV=development webpack --progress",
+    "watch": "NODE_ENV=development webpack --watch --progress",
+    "css": "WEBPACK_CHILD=css npm run build",
+    "lock": "npm-shrinkwrap --dev",
+    "lint": "eslint client/src && sass-lint client/src",
+    "lint-js": "eslint client/src",
+    "lint-js-fix": "eslint client/src --fix",
+    "lint-sass": "sass-lint client/src"
+  },
+  "dependencies": {
+    "babel-polyfill": "6.7.4",
+    "dropzone": "^5.5.1",
+    "jquery": "^3.1.1",
+    "mime": "^1.4.1",
+    "react": "15.3.1"
+  },
+  "devDependencies": {
+    "@silverstripe/eslint-config": "^0.0.4",
+    "@silverstripe/webpack-config": "^0.8.0",
+    "webpack": "^2"
+  },
+  "babel": {
+    "presets": [
+      "env",
+      "react"
+    ],
+    "plugins": [
+      "transform-object-rest-spread"
+    ]
+  }
+}

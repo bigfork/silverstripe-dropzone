@@ -1,0 +1,23 @@
+{
+    "name": "bigfork/silverstripe-dropzone",
+    "type": "silverstripe-vendormodule",
+    "description": "Dropzone.js field for SilverStripe.",
+    "keywords": ["silverstripe", "upload", "field", "uploadfield", "dropzone", "dropzonefield"],
+    "license": "BSD-3-Clause",
+    "require": {
+        "silverstripe/assets": "^1",
+        "silverstripe/framework": "^4"
+    },
+    "autoload": {
+        "psr-4": {
+            "Bigfork\\SilverStripeDropzone\\": "src/"
+        }
+    },
+    "extra": {
+        "expose": [
+            "client/dist"
+        ]
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
