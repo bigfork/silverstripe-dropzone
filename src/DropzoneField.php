@@ -92,55 +92,6 @@ class DropzoneField extends FormField implements FileHandleField
             $this->httpError(400);
         }
 
-        /*
-        $tmpFiles = [];
-        $tmpFile = $request->postVar('file');
-
-        // @todo - abstract this out to a new FileUploadReceiver
-        // @todo - validate max file size
-        // @todo - test more with parallelChunkUploads when chunks are in jumbled order
-        if ($request->postVar('dzchunkindex') !== null) {
-            $fileChunks = TEMP_PATH . DIRECTORY_SEPARATOR . $request->postVar('dzuuid');
-            $fp = fopen($fileChunks, 'c'); // Create or open the file
-
-            fseek($fp, $request->postVar('dzchunkbyteoffset'));
-            $tmpFp = fopen($tmpFile['tmp_name'], 'r');
-
-            stream_copy_to_stream($tmpFp, $fp, $request->postVar('dzchunksize'));
-            $stat = fstat($fp);
-            fclose($fp);
-            fclose($tmpFp);
-
-            // If this isn't the last chunk, bail out early as the file hasn't finished uploading
-            if ($stat['size'] !== (int)$request->postVar('dztotalfilesize')) {
-                return new HTTPResponse('');
-            }
-
-            // Replace the temp file with the full file - this allows us to re-use saveTemporaryFile()
-            unlink($tmpFile['tmp_name']);
-            rename($fileChunks, $tmpFile['tmp_name']);
-            $tmpFile['size'] = $stat['size'];
-            $tmpFiles[] = $tmpFile;
-        } else {
-            // Multiple files uploaded in one request
-            if (isset($tmpFile['tmp_name']) && is_array($tmpFile['tmp_name'])) {
-                $count = count($tmpFile['tmp_name']);
-
-                for ($i = 0; $i < $count; $i++) {
-                    $tmpFiles[] = [
-                        'name' => $tmpFile['name'][$i],
-                        'type' => $tmpFile['type'][$i],
-                        'tmp_name' => $tmpFile['tmp_name'][$i],
-                        'error' => $tmpFile['error'][$i],
-                        'size' => $tmpFile['size'][$i]
-                    ];
-                }
-            } else {
-                $tmpFiles[] = $tmpFile;
-            }
-        }
-        */
-
         $files = $this->saveTemporaryFilesFromRequest($request, $errors);
         if (!empty($errors)) {
             $result = [
