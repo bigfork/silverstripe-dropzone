@@ -52,7 +52,7 @@ const InitDropzoneField = (dropzoneFieldHolder) => {
     });
   } else {
     dropzone.on('success', (file, response) => {
-      addHiddenInput(file, response);
+      addHiddenInput(file, response[0]);
     });
   }
 
