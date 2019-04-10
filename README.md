@@ -4,6 +4,8 @@ A Dropzone.js field for SilverStripe 4 - designed to be used on the frontend, ra
 
 ## Work in progress
 
+Config options are listed here: https://www.dropzonejs.com/#configuration. Most config options should already work, support for some hasn’t been added yet.
+
 #### Stuff that works:
 
 - File uploads
