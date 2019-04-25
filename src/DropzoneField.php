@@ -94,12 +94,7 @@ class DropzoneField extends FormField implements FileHandleField
 
         $files = $this->saveTemporaryFilesFromRequest($request, $errors);
         if (!empty($errors)) {
-            $result = [
-                'message' => [
-                    'type' => 'error',
-                    'value' => implode(', ', $errors)
-                ]
-            ];
+            $result = implode(', ', $errors);
 
             $this->getUpload()->clearErrors();
             return (new HTTPResponse(json_encode($result), 400))
