@@ -204,6 +204,13 @@ class DropzoneField extends FormField implements FileHandleField
             $state['config']['acceptedFiles'] = implode(',', $accept);
         }
 
+        // Max file size validation
+        $maxFileSize = $this->getValidator()->getAllowedMaxFileSize();
+        if ($maxFileSize && $maxFileSize > 0 && !isset($state['config']['maxFilesize'])) {
+            $base = isset($state['config']['filesizeBase']) ? $state['config']['filesizeBase'] : 1000;
+            $state['config']['maxFilesize'] = $maxFileSize / ($base * 1000); // Bytes -> MB
+        }
+
         return $state;
     }
 
