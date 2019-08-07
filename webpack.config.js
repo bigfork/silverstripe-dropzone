@@ -25,8 +25,7 @@ const config = [
   {
     name: 'js',
     entry: {
-      bundle: `${PATHS.SRC}/bundles/bundle.js`,
-      cms: `${PATHS.SRC}/bundles/cms.js`,
+      bundle: `${PATHS.SRC}/bundles/bundle.js`
     },
     output: {
       path: PATHS.DIST,
@@ -41,8 +40,7 @@ const config = [
   {
     name: 'css',
     entry: {
-      bundle: `${PATHS.SRC}/bundles/bundle.scss`,
-      cms: `${PATHS.SRC}/bundles/cms.scss`,
+      bundle: `${PATHS.SRC}/bundles/bundle.scss`
     },
     output: {
       path: PATHS.DIST,

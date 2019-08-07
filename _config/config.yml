@@ -1,8 +1,0 @@
----
-Name: silverstripe-dropzone
----
-SilverStripe\Admin\LeftAndMain:
-  extra_requirements_css:
-    - 'bigfork/silverstripe-dropzone:client/dist/styles/cms.css'
-  extra_requirements_javascript:
-    - 'bigfork/silverstripe-dropzone:client/dist/js/cms.js'
