@@ -17,3 +17,7 @@ Config options are listed here: https://www.dropzonejs.com/#configuration. Most 
 
 - Re-ordering files - Dropzone.js doesn't appear to support this out of the box
 - Server-side thumbnail generation
+
+## Contributing
+
+Dropzone forces jQuery as a dependency: https://github.com/enyo/dropzone/issues/1495. So before compiling, please manually remove the following lines from dropzone.js (in node_modules): https://github.com/enyo/dropzone/blob/08b9e0a763b54a685404dea523a9c54242fbe1b9/dist/dropzone.js#L3200-L3207
