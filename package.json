@@ -20,7 +20,7 @@
   "dependencies": {
     "babel-polyfill": "6.7.4",
     "dropzone": "^5.5.1",
-    "jquery": "^3.4.0",
+    "jquery": "^3.5.0",
     "mime": "^1.4.1",
     "react": "15.3.1"
   },
