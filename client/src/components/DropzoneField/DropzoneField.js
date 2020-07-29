@@ -52,8 +52,13 @@ const InitDropzoneField = (dropzoneFieldHolder) => {
     });
   } else {
     dropzone.on('success', (file, response) => {
-      if (response !== undefined) {
-        addHiddenInput(file, response[0]);
+      // because of https://gitlab.com/meno/dropzone/-/issues/231
+      let res = response;
+      if (res === '') {
+        res = JSON.parse(file.xhr.response);
+      }
+      if (res !== undefined) {
+        addHiddenInput(file, res[0]);
       }
     });
   }
