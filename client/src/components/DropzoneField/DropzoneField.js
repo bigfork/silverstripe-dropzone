@@ -21,7 +21,10 @@ const InitDropzoneField = (dropzoneFieldHolder) => {
   existing.forEach((existingFileInput) => {
     const mockFile = {
       name: existingFileInput.getAttribute('data-file-name'),
-      size: existingFileInput.getAttribute('data-file-size')
+      size: existingFileInput.getAttribute('data-file-size'),
+      upload: {
+        uuid: existingFileInput.value // id of the file
+      }
     };
 
     dropzone.emit('addedfile', mockFile); // Adds the file to the uploaded list
