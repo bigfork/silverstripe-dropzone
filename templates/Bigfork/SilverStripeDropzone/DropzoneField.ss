@@ -5,7 +5,7 @@
 <% if $Items %>
     <div class="dropzone-placeholder">
         <% loop $Items %>
-            <input type="hidden" name="{$Up.Name}[Files][]" value="{$ID.ATT}" data-file-name="{$Name}" data-file-size="{$AbsoluteSize}" />
+            <input type="hidden" name="{$Up.Name}[Files][]" value="{$ID.ATT}" data-file-name="{$Name}" data-file-size="{$AbsoluteSize}" data-uuid="{$ID.ATT}"/>
         <% end_loop %>
     </div>
 <% end_if %>
