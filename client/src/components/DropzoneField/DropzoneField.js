@@ -14,6 +14,10 @@ const InitDropzoneField = (dropzoneFieldHolder) => {
 
   const dropzone = new Dropzone(container, schema.config);
 
+  // Track how many file slots have been used by previously uploaded files. This is later used to
+  // adjust the maxFiles setting when a previously uploaded file is removed
+  let fileSlotsReserved = 0;
+
   // Add placeholder files representing existing file IDs
   const existingInputs = dropzoneFieldHolder.querySelectorAll(`.dropzone-placeholder input[name="${filesInputName}"]`);
   // IE doesn't like forEach on NodeList, so convert it to an array
@@ -31,8 +35,9 @@ const InitDropzoneField = (dropzoneFieldHolder) => {
     dropzone.emit('complete', mockFile); // Hides progress bar
     dropzone.emit('success', mockFile); // Triggers success handler
 
-    if (dropzone.options.maxFiles) {
+    if (dropzone.options.maxFiles && dropzone.options.maxFiles > 0) {
       dropzone.options.maxFiles -= 1;
+      fileSlotsReserved += 1;
     }
   });
 
@@ -71,6 +76,11 @@ const InitDropzoneField = (dropzoneFieldHolder) => {
     const filesInput = dropzoneFieldHolder.querySelector(`input[name="${filesInputName}"][data-uuid="${file.upload.uuid}"]`);
     if (filesInput) {
       filesInput.parentElement.removeChild(filesInput);
+
+      if (fileSlotsReserved) {
+        fileSlotsReserved -= 1;
+        dropzone.options.maxFiles += 1;
+      }
     }
   });
 };
