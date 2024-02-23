@@ -1,6 +1,6 @@
 # SilverStripe DropzoneField
 
-A Dropzone.js field for SilverStripe 4 - designed to be used on the frontend, not in the CMS.
+A Dropzone.js field for SilverStripe 5 - designed to be used on the frontend, not in the CMS.
 
 ## Work in progress
 
