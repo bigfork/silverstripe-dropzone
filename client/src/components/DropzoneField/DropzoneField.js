@@ -48,6 +48,9 @@ const InitDropzoneField = (dropzoneFieldHolder) => {
     filesInput.name = filesInputName;
     filesInput.value = response.id;
     filesInput.setAttribute('data-uuid', file.upload.uuid);
+    if (input.hasAttribute('form')) {
+      filesInput.setAttribute('form', input.getAttribute('form'));
+    }
     dropzoneFieldHolder.appendChild(filesInput);
   };
 
