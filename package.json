@@ -23,7 +23,7 @@
   "devDependencies": {
     "@silverstripe/eslint-config": "^0.0.4",
     "@silverstripe/webpack-config": "^0.8.0",
-    "webpack": "^2"
+    "webpack": "^5"
   },
   "babel": {
     "presets": [
