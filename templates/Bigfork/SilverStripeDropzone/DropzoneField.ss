@@ -1,11 +1,14 @@
-<% require javascript('bigfork/silverstripe-dropzone:client/dist/js/bundle.js') %>
-<% require css('bigfork/silverstripe-dropzone:client/dist/styles/bundle.css') %>
+<%-- In the CMS these come from LeftAndMain.extra_requirements_[javascript|css] instead --%>
+<% if not $IsCMS %>
+    <% require javascript('bigfork/silverstripe-dropzone:client/dist/js/bundle.js') %>
+    <% require css('bigfork/silverstripe-dropzone:client/dist/styles/bundle.css') %>
+<% end_if %>
 <div class="js-dropzone"></div>
 <input {$AttributesHTML} $SchemaAttributesHtml />
 <% if $Items %>
     <div class="dropzone-placeholder">
         <% loop $Items %>
-            <input type="hidden" name="{$Up.Name}[Files][]" value="{$ID.ATT}" data-file-name="{$Name}" data-file-size="{$AbsoluteSize}" data-uuid="{$ID.ATT}" <% if $Up.getAttribute('form') %>form="{$Up.getAttribute('form')}"<% end_if %>/>
+            <input type="hidden" name="{$Up.Name}[Files][]" value="{$ID.ATT}" data-file-name="{$Name}" data-file-size="{$AbsoluteSize}" data-uuid="{$ID.ATT}" <% if $IsImage %>data-file-thumbnail="{$Fill(120, 120).URL}"<% end_if %> <% if $Up.getAttribute('form') %>form="{$Up.getAttribute('form')}"<% end_if %>/>
         <% end_loop %>
     </div>
 <% end_if %>

@@ -2,8 +2,10 @@
 
 namespace Bigfork\SilverStripeDropzone;
 
+use SilverStripe\Admin\LeftAndMain;
 use SilverStripe\Assets\File;
 use SilverStripe\Assets\Folder;
+use SilverStripe\Control\Controller;
 use SilverStripe\Control\HTTP;
 use SilverStripe\Control\HTTPRequest;
 use SilverStripe\Control\HTTPResponse;
@@ -164,11 +166,26 @@ class DropzoneField extends FormField implements FileHandleField
         return $this;
     }
 
+    /**
+     * Whether this field is being rendered inside the CMS. The CMS has its own JavaScript and CSS
+     * bundles, loaded via LeftAndMain.extra_requirements_[javascript|css] in _config/config.yml, so
+     * the template uses this to leave the front-end ones out
+     */
+    public function getIsCMS(): bool
+    {
+        return class_exists(LeftAndMain::class) && Controller::curr() instanceof LeftAndMain;
+    }
+
     public function getSchemaDataDefaults()
     {
         $state = parent::getSchemaDataDefaults();
 
         $state['config'] = $this->dropzoneConfig;
+
+        // Without this Dropzone.js renders no way of removing an attached file at all
+        if (!isset($state['config']['addRemoveLinks'])) {
+            $state['config']['addRemoveLinks'] = true;
+        }
 
         // The upload URL and security token both require a form, which won't be present if the
         // field hasn't been added to one yet
