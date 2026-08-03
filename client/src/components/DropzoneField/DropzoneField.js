@@ -1,5 +1,5 @@
 /* global document */
-import Dropzone from 'dropzone';
+import { Dropzone } from '@deltablot/dropzone';
 
 const InitDropzoneField = (dropzoneFieldHolder) => {
   const container = dropzoneFieldHolder.querySelector('.js-dropzone');

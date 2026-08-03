@@ -1,1 +1,5 @@
 /node_modules/
+/vendor/
+/resources/
+/**/*.js.map
+/**/*.css.map

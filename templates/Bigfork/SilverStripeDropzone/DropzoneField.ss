@@ -1,7 +1,7 @@
 <% require javascript('bigfork/silverstripe-dropzone:client/dist/js/bundle.js') %>
 <% require css('bigfork/silverstripe-dropzone:client/dist/styles/bundle.css') %>
 <div class="js-dropzone"></div>
-<input {$AttributesHTML} />
+<input {$AttributesHTML} $SchemaAttributesHtml />
 <% if $Items %>
     <div class="dropzone-placeholder">
         <% loop $Items %>
