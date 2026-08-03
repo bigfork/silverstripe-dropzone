@@ -2,19 +2,20 @@
 
 namespace Bigfork\SilverStripeDropzone;
 
-use SilverStripe\AssetAdmin\Forms\UploadField;
+use SilverStripe\Admin\LeftAndMain;
 use SilverStripe\Assets\File;
 use SilverStripe\Assets\Folder;
+use SilverStripe\Control\Controller;
 use SilverStripe\Control\HTTP;
 use SilverStripe\Control\HTTPRequest;
 use SilverStripe\Control\HTTPResponse;
 use SilverStripe\Control\HTTPResponse_Exception;
+use SilverStripe\Core\Validation\ValidationException;
+use SilverStripe\Core\Validation\ValidationResult;
 use SilverStripe\Forms\FileHandleField;
 use SilverStripe\Forms\FormField;
-use SilverStripe\Forms\Validator;
+use SilverStripe\Model\List\SS_List;
 use SilverStripe\ORM\DataObject;
-use SilverStripe\ORM\SS_List;
-use SilverStripe\ORM\ValidationException;
 use SilverStripe\Security\NullSecurityToken;
 
 class DropzoneField extends FormField implements FileHandleField
@@ -59,7 +60,7 @@ class DropzoneField extends FormField implements FileHandleField
      * @param string $title The field label.
      * @param SS_List $items Items assigned to this field
      */
-    public function __construct($name, $title = null, SS_List $items = null)
+    public function __construct($name, $title = null, ?SS_List $items = null)
     {
         $this->constructFileUploadReceiver();
 
@@ -165,17 +166,36 @@ class DropzoneField extends FormField implements FileHandleField
         return $this;
     }
 
+    /**
+     * Whether this field is being rendered inside the CMS. The CMS has its own JavaScript and CSS
+     * bundles, loaded via LeftAndMain.extra_requirements_[javascript|css] in _config/config.yml, so
+     * the template uses this to leave the front-end ones out
+     */
+    public function getIsCMS(): bool
+    {
+        return class_exists(LeftAndMain::class) && Controller::curr() instanceof LeftAndMain;
+    }
+
     public function getSchemaDataDefaults()
     {
         $state = parent::getSchemaDataDefaults();
 
         $state['config'] = $this->dropzoneConfig;
-        $state['config']['url'] = $this->Link('upload');
 
-        // Push security token
-        $token = $this->getForm()->getSecurityToken();
-        if (!$token instanceof NullSecurityToken) {
-            $state['config']['headers']["X-{$token->getName()}"] = $token->getValue();
+        // Without this Dropzone.js renders no way of removing an attached file at all
+        if (!isset($state['config']['addRemoveLinks'])) {
+            $state['config']['addRemoveLinks'] = true;
+        }
+
+        // The upload URL and security token both require a form, which won't be present if the
+        // field hasn't been added to one yet
+        if ($this->getForm()) {
+            $state['config']['url'] = $this->Link('upload');
+
+            $token = $this->getForm()->getSecurityToken();
+            if (!$token instanceof NullSecurityToken) {
+                $state['config']['headers']["X-{$token->getName()}"] = $token->getValue();
+            }
         }
 
         // If a max files number has been set
@@ -216,47 +236,39 @@ class DropzoneField extends FormField implements FileHandleField
 
     /**
      * Checks if the number of files attached adheres to the $allowedMaxFileNumber defined
-     *
-     * @param Validator $validator
-     * @return bool
      */
-    public function validate($validator)
+    public function validate(): ValidationResult
     {
-        $maxFiles = $this->getAllowedMaxFileNumber();
-        $count = count($this->getItems());
+        $this->beforeExtending('updateValidate', function (ValidationResult $result) {
+            $maxFiles = $this->getAllowedMaxFileNumber();
+            if ($maxFiles > 0 && $this->getItems()->count() > $maxFiles) {
+                $result->addFieldError(
+                    $this->getName(),
+                    _t(
+                        __CLASS__ . '.ErrorMaxFilesReached',
+                        'You can only upload {count} file.|You can only upload {count} files.',
+                        ['count' => $maxFiles]
+                    )
+                );
+            }
+        });
 
-        if ($maxFiles < 1 || $count <= $maxFiles) {
-            return true;
-        }
-
-        $validator->validationError(
-            $this->getName(),
-            _t(
-                UploadField::class . '.ErrorMaxFilesReached',
-                'You can only upload {count} file.|You can only upload {count} files.',
-                ['count' => $maxFiles]
-            )
-        );
-
-        return false;
+        return parent::validate();
     }
 
-    public function getAttributes()
+    /**
+     * Note the data-schema and data-state attributes are deliberately absent - they're added to the
+     * template via $SchemaAttributesHtml. Building them here would recurse infinitely, as
+     * FormField::getSchemaDataDefaults() calls getAttributes()
+     */
+    protected function getDefaultAttributes(): array
     {
-        $attributes = [
+        return [
             'class' => $this->extraClass(),
             'type' => 'file',
             'multiple' => $this->getIsMultiUpload(),
             'id' => $this->ID(),
-            'data-schema' => json_encode($this->getSchemaData()),
-            'data-state' => json_encode($this->getSchemaState()),
         ];
-
-        $attributes = array_merge($attributes, $this->attributes);
-
-        $this->extend('updateAttributes', $attributes);
-
-        return $attributes;
     }
 
     /**

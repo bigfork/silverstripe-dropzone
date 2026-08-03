@@ -1,0 +1,220 @@
+// CMS-only styling for DropzoneField. Dropzone.js' own stylesheets aren't loaded alongside this one
+// - they render files as a grid of large cards with hover-reveal overlays, which looks nothing like a
+// Silverstripe form field - so every .dz-* class is styled from scratch here, as a list of file rows
+// in the admin palette.
+
+$dropzone-font-size: 13px;
+$dropzone-font-size-small: 12px;
+$dropzone-text-color: #43536d; // admin $gray-700
+$dropzone-muted-color: #566b8d; // admin $gray-600
+$dropzone-border-color: #ced5e1; // admin $gray-200
+$dropzone-background: #fff;
+$dropzone-highlight-color: #0071c4; // admin $link-color
+$dropzone-highlight-background: #eef0f4; // admin $gray-100
+$dropzone-error-color: #da273b; // admin $red
+$dropzone-border-radius: 3px;
+$dropzone-spacing: 12px;
+$dropzone-row-spacing: 8px;
+$dropzone-thumbnail-size: 40px;
+$dropzone-upload-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M11 16V7.85l-2.6 2.58L7 9l5-5 5 5-1.4 1.43L13 7.85V16h-2Zm-5 4a2 2 0 0 1-2-2v-3h2v3h12v-3h2v3a2 2 0 0 1-2 2H6Z'/%3E%3C/svg%3E");
+$dropzone-file-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8l6 6v12a2 2 0 0 1-2 2H6Zm7-13V4H6v16h12V9h-5Z'/%3E%3C/svg%3E");
+
+div.dropzonefield {
+  // The <input type="file"> exists only to carry the field's schema through to JavaScript
+  input[type="file"] {
+    display: none;
+  }
+
+  .dropzone {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    border: 1px solid $dropzone-border-color;
+    border-radius: $dropzone-border-radius;
+    background: $dropzone-background;
+    color: $dropzone-text-color;
+    font-size: $dropzone-font-size;
+    line-height: 1.4;
+  }
+
+  .dropzone * {
+    box-sizing: border-box;
+  }
+
+  .dropzone.dz-drag-hover {
+    border-color: $dropzone-highlight-color;
+    background: $dropzone-highlight-background;
+  }
+
+  // Drop area. Ordered after the file previews (which Dropzone.js appends to the container as
+  // they're added) so that it always reads as the "add more files" affordance at the bottom
+  .dz-message {
+    order: 1;
+    margin: 0;
+    padding: $dropzone-spacing * 2 $dropzone-spacing;
+    text-align: center;
+    color: $dropzone-muted-color;
+  }
+
+  .dz-clickable .dz-message,
+  .dz-clickable .dz-message * {
+    cursor: pointer;
+  }
+
+  .dz-message:before {
+    content: "";
+    display: block;
+    width: 24px;
+    height: 24px;
+    margin: 0 auto 6px;
+    background-color: currentcolor;
+    mask: $dropzone-upload-icon no-repeat center / contain;
+  }
+
+  .dz-message .dz-button {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+  }
+
+  // Once files have been attached the drop area becomes a compact footer, and disappears entirely
+  // when the field is full
+  .dz-started .dz-message {
+    padding: $dropzone-spacing;
+    border-top: 1px solid $dropzone-border-color;
+    font-size: $dropzone-font-size-small;
+  }
+
+  .dz-started .dz-message:before {
+    width: 16px;
+    height: 16px;
+    margin-bottom: 4px;
+  }
+
+  .dz-max-files-reached .dz-message {
+    display: none;
+  }
+
+  // A single attached file
+  .dz-preview {
+    display: flex;
+    align-items: center;
+    position: relative;
+    padding: $dropzone-row-spacing $dropzone-spacing;
+  }
+
+  .dz-preview + .dz-preview {
+    border-top: 1px solid $dropzone-border-color;
+  }
+
+  .dz-preview.dz-error {
+    color: $dropzone-error-color;
+  }
+
+  .dz-image {
+    flex: 0 0 auto;
+    display: block;
+    overflow: hidden;
+    width: $dropzone-thumbnail-size;
+    height: $dropzone-thumbnail-size;
+    margin-right: $dropzone-spacing;
+    border-radius: $dropzone-border-radius;
+    background: $dropzone-highlight-background $dropzone-file-icon no-repeat center / 20px 20px;
+  }
+
+  .dz-image img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  // No thumbnail was generated (a non-image file, or an image the server couldn't resample), so
+  // fall back to the generic file icon behind the image
+  .dz-image img:not([src]) {
+    display: none;
+  }
+
+  // Dropzone.js' preview template puts the file size before the filename, but the filename is the
+  // more useful of the two, so flip them round
+  .dz-details {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column-reverse;
+    min-width: 0;
+  }
+
+  .dz-filename {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dz-size,
+  .dz-size strong {
+    color: $dropzone-muted-color;
+    font-size: $dropzone-font-size-small;
+    font-weight: normal;
+  }
+
+  .dz-error .dz-size {
+    color: inherit;
+  }
+
+  .dz-error-message {
+    display: none;
+    color: $dropzone-error-color;
+    font-size: $dropzone-font-size-small;
+  }
+
+  .dz-error .dz-error-message {
+    display: block;
+  }
+
+  // Dropzone.js' large overlaid tick/cross marks don't belong in a form field - the row itself
+  // turning red is enough of an error state
+  .dz-success-mark,
+  .dz-error-mark {
+    display: none;
+  }
+
+  .dz-remove {
+    flex: 0 0 auto;
+    margin-left: $dropzone-spacing;
+    border: 0;
+    background: none;
+    color: $dropzone-highlight-color;
+    font-size: $dropzone-font-size-small;
+    cursor: pointer;
+  }
+
+  .dz-remove:hover {
+    text-decoration: underline;
+  }
+
+  // Progress is drawn as a hairline along the bottom of the row it belongs to
+  .dz-progress {
+    display: block;
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    overflow: hidden;
+    height: 2px;
+    background: $dropzone-border-color;
+  }
+
+  .dz-complete .dz-progress {
+    display: none;
+  }
+
+  .dz-progress .dz-upload {
+    display: block;
+    width: 0;
+    height: 100%;
+    background: $dropzone-highlight-color;
+    transition: width 0.3s ease-in-out;
+  }
+}

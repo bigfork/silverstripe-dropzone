@@ -1,0 +1,4 @@
+en:
+  Bigfork\SilverStripeDropzone\DropzoneField:
+    ErrorMaxFilesReached: 'You can only upload {count} file.|You can only upload {count} files.'
+    NoFilesAttached: 'No files attached'

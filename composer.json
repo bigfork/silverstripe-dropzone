@@ -5,8 +5,9 @@
     "keywords": ["silverstripe", "upload", "field", "uploadfield", "dropzone", "dropzonefield"],
     "license": "BSD-3-Clause",
     "require": {
-        "silverstripe/assets": "^2",
-        "silverstripe/framework": "^5"
+        "php": "^8.3",
+        "silverstripe/assets": "^3",
+        "silverstripe/framework": "^6"
     },
     "autoload": {
         "psr-4": {

@@ -1,5 +1,6 @@
+// The <input type="file"> exists only to carry the field's schema through to JavaScript
 div.dropzonefield {
-  input {
+  input[type="file"] {
     display: none;
   }
 }

@@ -1,0 +1,13 @@
+---
+Name: dropzonefield
+Only:
+  classexists: SilverStripe\Admin\LeftAndMain
+---
+# CMS forms are loaded, replaced and torn down over AJAX long after DOMContentLoaded has fired, so
+# the CMS gets its own entwine-driven bundle. Loading it here rather than from the field's template
+# means it's registered once per CMS page load, before any form that uses the field arrives.
+SilverStripe\Admin\LeftAndMain:
+  extra_requirements_javascript:
+    - 'bigfork/silverstripe-dropzone: client/dist/js/bundle-cms.js'
+  extra_requirements_css:
+    - 'bigfork/silverstripe-dropzone: client/dist/styles/bundle-cms.css'
