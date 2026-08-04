@@ -19,7 +19,10 @@ $dropzone-thumbnail-size: 40px;
 $dropzone-upload-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M11 16V7.85l-2.6 2.58L7 9l5-5 5 5-1.4 1.43L13 7.85V16h-2Zm-5 4a2 2 0 0 1-2-2v-3h2v3h12v-3h2v3a2 2 0 0 1-2 2H6Z'/%3E%3C/svg%3E");
 $dropzone-file-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8l6 6v12a2 2 0 0 1-2 2H6Zm7-13V4H6v16h12V9h-5Z'/%3E%3C/svg%3E");
 
-div.dropzonefield {
+// The td selector is for fields inside an inline-editable GridField (GridFieldEditableColumns),
+// where there's no holder div - bundle-cms.js adds the class to the field's <td> instead
+div.dropzonefield,
+td.dropzonefield {
   // The <input type="file"> exists only to carry the field's schema through to JavaScript
   input[type="file"] {
     display: none;

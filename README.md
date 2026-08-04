@@ -50,10 +50,15 @@ options should already work, support for some hasn't been added yet.
 
 ### CMS usage
 
-This field works in any **PHP-rendered** form, which includes the CMS's page edit forms and
-GridField detail forms — so a `DropzoneField` returned from `getCMSFields()` will work as you'd
-expect. In the CMS the field is initialised through entwine rather than on `DOMContentLoaded`, so it
-also works in forms the CMS loads, replaces or tears down over AJAX.
+This field works in any **PHP-rendered** form, which includes the CMS's page edit forms, GridField
+detail forms and inline-editable GridField columns (`GridFieldEditableColumns`) — so a
+`DropzoneField` returned from `getCMSFields()` will work as you'd expect. In the CMS the field is
+initialised through entwine rather than on `DOMContentLoaded`, so it also works in forms the CMS
+loads, replaces or tears down over AJAX.
+
+Note that `GridFieldEditableColumns` support only covers *existing* rows —
+`GridFieldAddNewInlineButton` builds its new rows from a client-side template, so the field's upload
+URL would point at a record that doesn't exist yet.
 
 It does **not** work in forms rendered by `silverstripe/admin`'s React form schema, such as the ones
 in the files section, or an Elemental block's inline edit form. The field declares
