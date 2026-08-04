@@ -1,4 +1,5 @@
 en:
   Bigfork\SilverStripeDropzone\DropzoneField:
+    ErrorFileTooLarge: 'File is too large'
     ErrorMaxFilesReached: 'You can only upload {count} file.|You can only upload {count} files.'
     NoFilesAttached: 'No files attached'

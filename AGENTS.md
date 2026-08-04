@@ -97,6 +97,28 @@ The field has no conventional form value:
 
 The six `dz*` chunk param names are identical between `dropzone` 5 and `@deltablot/dropzone` 7, which is why the fork migration needed no PHP changes here.
 
+Chunks are deleted as soon as `combineChunksIntoFile()` has run — before the assembled file is validated, since they're spent either way — and on every early-return error path. `deleteStaleChunks()` sweeps `TEMP_PATH` for chunks older than `chunk_max_age` when a new upload starts (index 0), because an abandoned upload has nothing else to clean up after it and a stale chunk set would make `isFinalChunk()` return true early for a retry reusing the same `dzuuid`. Note `$chunk_max_age` is declared on the *trait* but a trait's properties become the using class's, so the config to set is `DropzoneField.chunk_max_age` — the trait name won't work.
+
+Note `saveTemporaryFileChunkFromRequest()` writes each chunk at its *absolute* offset within the whole file (`fseek($fp, $dzchunkbyteoffset)`), so a chunk file is a hole followed by its data, and `combineChunksIntoFile()`'s fourth `stream_copy_to_stream()` argument is a *source* offset that skips the padding. It looks wrong and isn't. It also means `ls -l` wildly overstates chunk disk usage — the files are sparse.
+
+### Per-request vs per-file size limits
+
+`upload_max_filesize` and `post_max_size` are both limits on a **single request**, but core `Upload_Validator::parseAndVerifyAllowedSize()` applies `min()` of them as a limit on a single **file**, unconditionally — every route in (`setAllowedMaxFileSize()`, the `default_max_file_size` config, the no-config fallback) goes through it. For a normal upload those are the same thing. For a chunked upload they aren't, and the clamp re-couples exactly what chunking exists to decouple: it caps a chunked upload at the size that would have fitted in one request anyway.
+
+`DropzoneUploadValidator` exists to lift that clamp. It keeps an *unclamped* copy of the configured sizes alongside the parent's clamped ones and picks between them in `getAllowedMaxFileSize()`, so the answer doesn't depend on the order the size and the clamping flag were set in. Three things about it:
+
+- **Its `getAllowedMaxFileSize()` override must not delegate lazy initialisation to the parent.** The parent initialises by calling `setAllowedMaxFileSize()` — i.e. the override — which populates the unclamped copy as a side effect, so a second call would answer differently to the first. It does its own unclamped init from `default_max_file_size` instead.
+- **The override reproduces the parent's three-tier lookup** (exact extension → `[category]` → `*`). `isValidSize()` calls it *with* an extension, so returning only the `*` value would silently break per-extension rules.
+- The clamp is only lifted while `clampToPHPLimits` is false, which `DropzoneField::configureValidatorClamping()` sets from the `chunking` config option. It's called from `getSchemaDataDefaults()` and `upload()` — the two moments the answer matters — rather than from the setters, which is what makes it order-independent. A non-`DropzoneUploadValidator` validator plus chunking **throws**: silently capping a field someone configured for 200MB files is the failure mode this whole class exists to prevent.
+
+The per-request limit is enforced in the receiver instead, against each chunk, via `DropzoneUploadValidator::getPHPMaxUploadSize()` (a public static because `Upload_Validator`'s equivalent is private). The chunk check deliberately does *not* go through `isValidSize()` any more — that now reads the unclamped per-file limit — so it checks `$tmpFile['error']` itself for the `UPLOAD_ERR_INI_SIZE` case `isValidSize()` used to shortcut on.
+
+`DropzoneField::getMaxChunkSize()` is `min(ini)` minus `chunk_size_headroom`, with a proportional floor so a small ini can't yield an absurd chunk size. Clamping `chunkSize` to it closes a Dropzone.js gap: chunking only engages for files *larger* than `chunkSize` unless `forceChunking` is set (`chunked = chunking && (forceChunking || size > chunkSize)`), so a `chunkSize` above the per-request limit would let a file between the two be sent in one request that PHP then rejects. With the clamp in place `forceChunking` is unnecessary.
+
+`parallelChunkUploads` is unsupported: `isFinalChunk()` just checks whether every chunk file exists, so two chunks finishing concurrently can both see a complete set and both reassemble, producing duplicate `File` records.
+
+Dropzone.js compares against `maxFilesize * 1048576`, so `getSchemaDataDefaults()` converts bytes to **MiB**. `filesizeBase` only affects the numbers Dropzone prints in its own messages, never the check — the old `filesizeBase`-derived divisor made the client limit ~4.9% looser than the server's. Client and server still disagree by one byte at the boundary (Dropzone rejects `size > max`, `isValidSize()` requires `size < max`); that's not worth engineering around.
+
 ### Why React form-schema forms fail
 
 `schemaComponent = 'DropzoneField'` names a React component that has never existed, so `silverstripe/admin`'s `FormBuilder` throws `Component not found in injector: DropzoneField`. This is **deliberately left as-is**: setting `schemaComponent` to `null` would fall through to `getComponentForDataType('Custom')` → `get('GridField')` and silently render a GridField, which is worse than a clear error. React forms also submit from redux-form state rather than the DOM, so the hidden-input value flow wouldn't work there anyway.
