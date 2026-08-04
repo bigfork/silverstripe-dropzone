@@ -17,4 +17,28 @@ jQuery.entwine('bigfork.dropzone', ($) => {
       this._super();
     }
   });
+
+  // GridFieldEditableColumns renders the bare field with no holder div, so the <td> stands in as
+  // the holder: it wraps the .js-dropzone container and receives the hidden value inputs. It's
+  // given the dropzonefield class to pick up the CMS styling - being a td, the rule above can
+  // never match it
+  $('input.dropzonefield.editable-column-field').entwine({
+    onmatch() {
+      this._super();
+      const cell = this[0].closest('td');
+      if (cell) {
+        cell.classList.add('dropzonefield');
+        initDropzoneField(cell);
+      }
+    },
+
+    onunmatch() {
+      const cell = this[0].closest('td');
+      if (cell) {
+        destroyDropzoneField(cell);
+        cell.classList.remove('dropzonefield');
+      }
+      this._super();
+    }
+  });
 });

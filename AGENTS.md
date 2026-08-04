@@ -47,7 +47,7 @@ There are two of each. `DropzoneField.js` exports `initDropzoneField()` / `destr
 
 | | front-end | CMS |
 | --- | --- | --- |
-| JS | `bundle.js` — scans for `div.dropzonefield` on `DOMContentLoaded` | `bundle-cms.js` — entwine rule with `onmatch`/`onunmatch` |
+| JS | `bundle.js` — scans for `div.dropzonefield` on `DOMContentLoaded` | `bundle-cms.js` — entwine rules with `onmatch`/`onunmatch` |
 | CSS | `bundle.scss` — Dropzone.js' own `basic.css` + `dropzone.css`, plus hiding the `<input type="file">` | `dropzone-cms.scss` — every `.dz-*` class styled from scratch, as a list of file rows in the admin palette |
 | loaded by | `<% require %>` in `DropzoneField.ss` | `LeftAndMain.extra_requirements_[javascript\|css]` in `_config/config.yml` |
 
@@ -56,6 +56,15 @@ Keeping them apart is deliberate: the CMS styling is admin chrome and has no bus
 Because they're mutually exclusive, Dropzone.js being compiled into both JS bundles costs nothing. `DropzoneField::getIsCMS()` (`Controller::curr() instanceof LeftAndMain`, guarded by `class_exists`) is what makes the template leave the front-end pair out inside the CMS. `silverstripe/admin` is a **soft** dependency — don't add it to `composer.json`; the config block is fenced with `Only: classexists`.
 
 Loading the CMS bundle from config rather than the template means it's registered once per CMS page load, before any form using the field arrives, and after admin's own `vendor.js` so `jQuery.entwine` exists. `bundle-cms.js` takes jQuery off the global (`/* global jQuery */`) rather than importing it — `jsConfig.externals` is cleared, so an `import` would compile a second copy of jQuery into the bundle.
+
+There are two entwine rules. `div.dropzonefield` covers ordinary field holders. The second,
+`input.dropzonefield.editable-column-field`, covers inline-editable GridFields
+(`GridFieldEditableColumns`), which render the bare field into a `<td>` with no holder div — the
+`<td>` stands in as the holder (it wraps `.js-dropzone`, receives the hidden value inputs, and gains
+the `dropzonefield` class so the CMS stylesheet's `td.dropzonefield` scope applies). The two rules
+are mutually exclusive: an editable-column field has no holder div, and a Readonly field's `Type()`
+override keeps it out of both. `GridFieldAddNewInlineButton` rows are *not* supported — they're
+cloned from a client-side template, so the upload URL points at a record that doesn't exist yet.
 
 Init is idempotent via a `data-dropzone-initialised` attribute on the holder — entwine re-runs `onmatch` against already-matching elements whenever a rule for their selector is redefined. `destroyDropzoneField()` calls `dropzone.off('removedfile')` before `destroy()` — `destroy()` removes every file, and the `removedfile` handler is what deletes the hidden inputs holding the field's value.
 
