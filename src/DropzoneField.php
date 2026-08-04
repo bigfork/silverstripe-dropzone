@@ -2,6 +2,7 @@
 
 namespace Bigfork\SilverStripeDropzone;
 
+use LogicException;
 use SilverStripe\Admin\LeftAndMain;
 use SilverStripe\Assets\File;
 use SilverStripe\Assets\Folder;
@@ -29,6 +30,21 @@ class DropzoneField extends FormField implements FileHandleField
     private static $allowed_actions = [
         'upload'
     ];
+
+    /**
+     * How much of PHP's per-request upload limit to leave free when deriving a chunk size. The
+     * request body carries the six dz* fields and multipart boundaries as well as the chunk itself.
+     *
+     * @config
+     * @var int
+     */
+    private static $chunk_size_headroom = 524288;
+
+    /**
+     * Dropzone.js' own default chunkSize, mirrored here so that an ini limit smaller than it can be
+     * detected. Only relevant when the field hasn't been given an explicit chunkSize.
+     */
+    private const DROPZONE_DEFAULT_CHUNK_SIZE = 2097152;
 
     protected $inputType = 'file';
 
@@ -64,6 +80,13 @@ class DropzoneField extends FormField implements FileHandleField
     {
         $this->constructFileUploadReceiver();
 
+        // Chunked uploads need a validator that can be told to ignore PHP's per-request size
+        // limits. The allowed extensions are carried across rather than re-read from config, so
+        // there's only one place that knows where they come from
+        $validator = DropzoneUploadValidator::create();
+        $validator->setAllowedExtensions($this->getValidator()->getAllowedExtensions());
+        $this->setValidator($validator);
+
         // When creating new files, rename on conflict
         $this->getUpload()->setReplaceFile(false);
 
@@ -92,6 +115,8 @@ class DropzoneField extends FormField implements FileHandleField
         if (!$token->checkRequest($request)) {
             $this->httpError(400);
         }
+
+        $this->configureValidatorClamping();
 
         $files = $this->saveTemporaryFilesFromRequest($request, $errors);
         if (!empty($errors)) {
@@ -167,6 +192,94 @@ class DropzoneField extends FormField implements FileHandleField
     }
 
     /**
+     * @param string $option
+     * @param mixed $default
+     * @return mixed
+     */
+    public function getDropzoneConfigOption($option, $default = null)
+    {
+        return $this->dropzoneConfig[$option] ?? $default;
+    }
+
+    /**
+     * Whether this field uploads files in chunks, across multiple requests
+     */
+    public function getIsChunked(): bool
+    {
+        return (bool)$this->getDropzoneConfigOption('chunking', false);
+    }
+
+    /**
+     * The maximum size a single chunk may be. Each chunk is posted as an ordinary file upload, so
+     * this is bounded by what PHP will accept in one request - never by the field's own maximum
+     * file size, which governs the reassembled file.
+     */
+    public function getMaxChunkSize(): int
+    {
+        $phpMax = DropzoneUploadValidator::getPHPMaxUploadSize();
+        $headroom = (int)static::config()->get('chunk_size_headroom');
+
+        // Proportional floor, so that a small but legitimate ini limit can't be reduced to
+        // something absurd (or to zero) by a fixed headroom larger than itself
+        return max($phpMax - $headroom, (int)($phpMax * 0.9));
+    }
+
+    /**
+     * Tells the validator whether to keep clamping its maximum file size to PHP's per-request
+     * limits. Called at the two points the answer matters - building the client-side config, and
+     * validating an upload - rather than from the setters, so that it doesn't matter whether
+     * chunking is enabled before or after the maximum file size is set.
+     *
+     * @throws LogicException if chunking is enabled on a validator that can't unclamp
+     */
+    protected function configureValidatorClamping(): void
+    {
+        $validator = $this->getValidator();
+
+        if (!$validator instanceof DropzoneUploadValidator) {
+            if ($this->getIsChunked()) {
+                throw new LogicException(sprintf(
+                    'Field "%s" has chunking enabled, but its validator (%s) is not a %s, so its '
+                        . 'maximum file size cannot exceed PHP\'s per-request upload limit. Extend '
+                        . '%s instead.',
+                    $this->getName(),
+                    get_class($validator),
+                    DropzoneUploadValidator::class,
+                    DropzoneUploadValidator::class
+                ));
+            }
+
+            return;
+        }
+
+        $validator->setClampToPHPLimits(!$this->getIsChunked());
+    }
+
+    /**
+     * Sets the maximum size of an uploaded file, in bytes or ini format ('200m'). When chunking is
+     * enabled this may exceed PHP's upload_max_filesize/post_max_size, as the file is never sent
+     * in a single request.
+     *
+     * @param array|int|string $rules
+     * @return $this
+     */
+    public function setAllowedMaxFileSize($rules)
+    {
+        $this->getValidator()->setAllowedMaxFileSize($rules);
+        return $this;
+    }
+
+    /**
+     * @param string $ext
+     * @return int|false Filesize in bytes
+     */
+    public function getAllowedMaxFileSize($ext = null)
+    {
+        $this->configureValidatorClamping();
+        return $this->getValidator()->getAllowedMaxFileSize($ext);
+    }
+
+    /**
      * Whether this field is being rendered inside the CMS. The CMS has its own JavaScript and CSS
      * bundles, loaded via LeftAndMain.extra_requirements_[javascript|css] in _config/config.yml, so
      * the template uses this to leave the front-end ones out
@@ -178,6 +291,8 @@ class DropzoneField extends FormField implements FileHandleField
 
     public function getSchemaDataDefaults()
     {
+        $this->configureValidatorClamping();
+
         $state = parent::getSchemaDataDefaults();
 
         $state['config'] = $this->dropzoneConfig;
@@ -224,11 +339,23 @@ class DropzoneField extends FormField implements FileHandleField
             $state['config']['acceptedFiles'] = implode(',', $accept);
         }
 
-        // Max file size validation
+        // Max file size validation. Dropzone.js compares against maxFilesize * 1048576, so this has
+        // to be MiB - filesizeBase only affects the numbers it prints in its own messages
         $maxFileSize = $this->getValidator()->getAllowedMaxFileSize();
         if ($maxFileSize && $maxFileSize > 0 && !isset($state['config']['maxFilesize'])) {
-            $base = isset($state['config']['filesizeBase']) ? $state['config']['filesizeBase'] : 1000;
-            $state['config']['maxFilesize'] = $maxFileSize / ($base * 1000); // Bytes -> MB
+            $state['config']['maxFilesize'] = $maxFileSize / 1048576; // Bytes -> MiB
+        }
+
+        // A chunk has to fit inside PHP's per-request limits. Bringing an oversized chunkSize down
+        // also closes a gap in Dropzone.js: chunking only kicks in for files larger than chunkSize
+        // (unless forceChunking is set), so a chunkSize above the per-request limit would let a
+        // file between the two be sent in a single request that PHP then rejects
+        if ($this->getIsChunked()) {
+            $maxChunkSize = $this->getMaxChunkSize();
+            $chunkSize = $state['config']['chunkSize'] ?? self::DROPZONE_DEFAULT_CHUNK_SIZE;
+            if ($chunkSize > $maxChunkSize) {
+                $state['config']['chunkSize'] = $maxChunkSize;
+            }
         }
 
         return $state;

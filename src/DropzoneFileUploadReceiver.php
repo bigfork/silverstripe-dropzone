@@ -10,10 +10,23 @@ use SilverStripe\Forms\FileUploadReceiver;
  * A FileUploadReceiver designed specifically for use with Dropzone.js.
  * Supports single file per request, multiple files per request, and
  * multiple requests per file (i.e. "chunked") file uploads
+ *
+ * Expects the using class to provide getAllowedMaxFileSize(), which DropzoneField implements so
+ * that reading the maximum size also settles whether the validator is clamping to PHP's
+ * per-request limits - see DropzoneUploadValidator.
  */
 trait DropzoneFileUploadReceiver
 {
     use FileUploadReceiver;
+
+    /**
+     * How long, in seconds, a chunk file from an incomplete upload is kept before it's treated as
+     * abandoned and swept up. Set to 0 to disable the sweep.
+     *
+     * @config
+     * @var int
+     */
+    private static $chunk_max_age = 86400;
 
     /**
      * Required POST data for chunked file uploads
@@ -106,13 +119,47 @@ trait DropzoneFileUploadReceiver
             }
         }
 
-        // Early file size check - to stop someone posting massive chunks
         $tmpFile = $request->postVar('file');
-        $validator = $this->getUpload()->getValidator();
-        $validator->setTmpFile($tmpFile);
-        if (!$validator->isValidSize()) {
+
+        // A single chunk failing isn't necessarily fatal - retryChunks re-sends just that chunk,
+        // reusing the same dzuuid - so the chunks already uploaded are deliberately left alone here.
+        // An upload that never comes back for them is cleaned up by deleteStaleChunks() instead.
+        if (!empty($tmpFile['error'])) {
+            $errors[] = sprintf('File chunk upload failed (error %d)', $tmpFile['error']);
+            return null;
+        }
+
+        // A chunk is posted as an ordinary file upload, so what applies here is PHP's per-request
+        // limit - not the field's maximum file size, which governs the reassembled file and may
+        // legitimately be far larger
+        if ($tmpFile['size'] > DropzoneUploadValidator::getPHPMaxUploadSize()) {
             $errors[] = 'File chunk is too large';
             return null;
+        }
+
+        // Reject an oversized file before accepting any of it, rather than after reassembling the
+        // whole thing. dztotalfilesize comes from the client, so this is there to fail fast, not to
+        // enforce anything - the reassembled file is checked again by saveTemporaryFile() below.
+        // Asking the field rather than the validator directly is what guarantees the validator is
+        // no longer clamping to PHP's per-request limit by the time it's read
+        $maxFileSize = $this->getAllowedMaxFileSize(
+            pathinfo($tmpFile['name'] ?? '', PATHINFO_EXTENSION)
+        );
+        if ($maxFileSize && (int)$request->postVar('dztotalfilesize') >= $maxFileSize) {
+            $errors[] = _t(
+                __CLASS__ . '.ErrorFileTooLarge',
+                'File is too large'
+            );
+            // Unlike a failed chunk, this file is never going to be accepted, so a retry has
+            // nothing to salvage and anything already uploaded is dead weight
+            $this->deleteChunks($request);
+            return null;
+        }
+
+        // Nothing cleans up after an upload that's abandoned part-way through, so sweep any chunks
+        // old enough to be certain they're dead whenever a new upload starts
+        if ((int)$request->postVar('dzchunkindex') === 0) {
+            $this->deleteStaleChunks();
         }
 
         $chunkPath = $this->getPathforChunkIndex($request, $request->postVar('dzchunkindex'));
@@ -133,6 +180,10 @@ trait DropzoneFileUploadReceiver
         // Combine the chunks into the tmp file - so we can just re-use saveTemporaryFile()
         $filesize = $this->combineChunksIntoFile($tmpFile['tmp_name'], $request);
         $tmpFile['size'] = $filesize;
+
+        // The chunks have served their purpose once they're reassembled, whether or not the file
+        // itself turns out to be valid
+        $this->deleteChunks($request);
 
         $result = $this->saveTemporaryFile($tmpFile, $error);
         if ($error !== null) {
@@ -167,6 +218,43 @@ trait DropzoneFileUploadReceiver
         }
 
         return $allFilesExist;
+    }
+
+    /**
+     * Removes the chunk files belonging to the upload this request is part of
+     *
+     * @param HTTPRequest $request
+     */
+    protected function deleteChunks(HTTPRequest $request): void
+    {
+        for ($i = 0; $i < $request->postVar('dztotalchunkcount'); $i++) {
+            $path = $this->getPathforChunkIndex($request, $i);
+            if (is_file($path)) {
+                unlink($path);
+            }
+        }
+    }
+
+    /**
+     * Removes chunk files left behind by uploads that never completed. An upload that's abandoned
+     * (or that fails before its final chunk) has nothing else to clean up after it, and stale chunks
+     * would otherwise make isFinalChunk() return true early for a retry reusing the same dzuuid.
+     */
+    protected function deleteStaleChunks(): void
+    {
+        $maxAge = (int)static::config()->get('chunk_max_age');
+        if ($maxAge <= 0) {
+            return;
+        }
+
+        $cutoff = time() - $maxAge;
+        $pattern = TEMP_PATH . DIRECTORY_SEPARATOR . '*-chunk[0-9]*';
+
+        foreach (glob($pattern) ?: [] as $path) {
+            if (is_file($path) && filemtime($path) < $cutoff) {
+                unlink($path);
+            }
+        }
     }
 
     /**
