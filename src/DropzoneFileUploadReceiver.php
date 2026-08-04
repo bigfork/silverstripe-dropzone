@@ -10,6 +10,10 @@ use SilverStripe\Forms\FileUploadReceiver;
  * A FileUploadReceiver designed specifically for use with Dropzone.js.
  * Supports single file per request, multiple files per request, and
  * multiple requests per file (i.e. "chunked") file uploads
+ *
+ * Expects the using class to provide getAllowedMaxFileSize(), which DropzoneField implements so
+ * that reading the maximum size also settles whether the validator is clamping to PHP's
+ * per-request limits - see DropzoneUploadValidator.
  */
 trait DropzoneFileUploadReceiver
 {
@@ -117,11 +121,11 @@ trait DropzoneFileUploadReceiver
 
         $tmpFile = $request->postVar('file');
 
-        // PHP rejects an upload over upload_max_filesize before it reaches userland, leaving an
-        // error code and no usable temp file
+        // A single chunk failing isn't necessarily fatal - retryChunks re-sends just that chunk,
+        // reusing the same dzuuid - so the chunks already uploaded are deliberately left alone here.
+        // An upload that never comes back for them is cleaned up by deleteStaleChunks() instead.
         if (!empty($tmpFile['error'])) {
-            $errors[] = 'File chunk upload failed';
-            $this->deleteChunks($request);
+            $errors[] = sprintf('File chunk upload failed (error %d)', $tmpFile['error']);
             return null;
         }
 
@@ -130,14 +134,15 @@ trait DropzoneFileUploadReceiver
         // legitimately be far larger
         if ($tmpFile['size'] > DropzoneUploadValidator::getPHPMaxUploadSize()) {
             $errors[] = 'File chunk is too large';
-            $this->deleteChunks($request);
             return null;
         }
 
         // Reject an oversized file before accepting any of it, rather than after reassembling the
         // whole thing. dztotalfilesize comes from the client, so this is there to fail fast, not to
-        // enforce anything - the reassembled file is checked again by saveTemporaryFile() below
-        $maxFileSize = $this->getValidator()->getAllowedMaxFileSize(
+        // enforce anything - the reassembled file is checked again by saveTemporaryFile() below.
+        // Asking the field rather than the validator directly is what guarantees the validator is
+        // no longer clamping to PHP's per-request limit by the time it's read
+        $maxFileSize = $this->getAllowedMaxFileSize(
             pathinfo($tmpFile['name'] ?? '', PATHINFO_EXTENSION)
         );
         if ($maxFileSize && (int)$request->postVar('dztotalfilesize') >= $maxFileSize) {
@@ -145,6 +150,8 @@ trait DropzoneFileUploadReceiver
                 __CLASS__ . '.ErrorFileTooLarge',
                 'File is too large'
             );
+            // Unlike a failed chunk, this file is never going to be accepted, so a retry has
+            // nothing to salvage and anything already uploaded is dead weight
             $this->deleteChunks($request);
             return null;
         }
